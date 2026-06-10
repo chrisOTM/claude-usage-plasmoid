@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name="claude-usage-plasmoid-config"/>
+  <group name="General">
+    <entry name="refreshIntervalSeconds" type="Int">
+      <label>Refresh interval in seconds</label>
+      <!-- a fetch is one sub-second HTTPS GET to the OAuth usage endpoint (no
+           claude process spawned). The endpoint is rate-limited (HTTP 429),
+           and the collector additionally throttles + caches, so keep the
+           interval relaxed. Usage moves slowly and the countdown ticks locally
+           between fetches. -->
+      <default>300</default>
+      <min>60</min>
+      <max>3600</max>
+    </entry>
+  </group>
+</kcfg>

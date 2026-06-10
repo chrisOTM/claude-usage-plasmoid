@@ -1,0 +1,21 @@
+{
+    "KPlugin": {
+        "Authors": [{
+            "Email": "",
+            "Name": "chrisOTM"
+        }],
+        "Category": "Utilities",
+        "Description": "Zeigt Claude Code Nutzungslimits in der Taskleiste an",
+        "EnabledByDefault": true,
+        "FormFactors": ["desktop"],
+        "Icon": "office-chart-line",
+        "Id": "com.github.chrisotm.claude-usage-plasmoid",
+        "License": "MIT",
+        "Name": "Claude Usage",
+        "ServiceTypes": ["Plasma/Applet"],
+        "Version": "0.2.0"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-ConfigLocation": "claude-usage-plasmoid-config"
+}

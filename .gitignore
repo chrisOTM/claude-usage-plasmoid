@@ -1,0 +1,9 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Local Claude Code settings
+.claude/
+
+# Internal design spec — kept local, not published
+spec.md
