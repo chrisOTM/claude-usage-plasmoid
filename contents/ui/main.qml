@@ -133,6 +133,17 @@ PlasmoidItem {
         onTriggered: root.fetchData()
     }
 
+    // fast retry while we have no data yet (e.g. network not up right after
+    // boot) so the panel recovers in seconds instead of waiting a full
+    // refresh interval. Stops once a fetch succeeds.
+    Timer {
+        id: retryTimer
+        interval: 15000
+        repeat: true
+        running: root.uiState === "error" || root.uiState === "loading"
+        onTriggered: root.fetchData()
+    }
+
     // ticks the countdown text between fetches
     Timer {
         id: displayTimer
