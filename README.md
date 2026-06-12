@@ -11,6 +11,7 @@ KDE Plasma 6 panel widget showing Claude Code usage limits at a glance.
 - **Click** the widget to toggle Session ↔ Weekly
 - Status colors: green <50%, yellow 50–80%, red 81–99%, dark red + pulse ≥100%
 - Auto-refresh (default 300s, configurable 60s–3600s; countdown ticks locally between fetches)
+- **Reset notification:** popup + sound when a session or weekly window resets (configurable urgency and sound, both toggleable)
 
 ## Requirements
 
@@ -65,7 +66,11 @@ Notes on the approach:
 
 ## Config
 
-Right-click the widget → **Configure…** → set the refresh interval (seconds).
+Right-click the widget → **Configure…**:
+
+- **Refresh interval** (seconds, 60–3600).
+- **Notify on reset** — show a desktop popup when a window resets; pick urgency (Low / Normal / Critical — Critical stays until dismissed).
+- **Play sound** — play a freedesktop system sound on reset; pick Bell / Complete / Message / Attention.
 
 ## UI states
 
