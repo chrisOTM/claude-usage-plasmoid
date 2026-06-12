@@ -142,7 +142,14 @@ PlasmoidItem {
     }
     function checkBlockReset(oldB, newB, label) {
         var o = resetTs(oldB), n = resetTs(newB);
-        if (!isNaN(o) && !isNaN(n) && n > o)   // window rolled over
+        if (isNaN(o) || isNaN(n))
+            return;
+        // True rollover: the previous window's reset moment has actually
+        // elapsed AND resetAt jumped to a later window. Claude's resets_at is a
+        // rolling window that slides forward as usage accrues; a forward slide
+        // while the old reset is still pending is NOT a reset, so requiring
+        // Date.now() >= o suppresses the false mid-window notifications.
+        if (n > o && Date.now() >= o)
             fireResetNotification(label);
     }
     function fireResetNotification(label) {
