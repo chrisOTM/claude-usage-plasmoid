@@ -5,6 +5,8 @@ import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PC3
 import org.kde.plasma.plasma5support as Plasma5Support
 import org.kde.kirigami as Kirigami
+import org.kde.notification
+import QtMultimedia
 
 PlasmoidItem {
     id: root
@@ -100,6 +102,8 @@ PlasmoidItem {
 
         var ok = parsed && !parsed.error && (parsed.session || parsed.weekly);
         if (ok) {
+            if (usage)   // had prior data — don't fire a notification on first load
+                maybeNotifyReset(usage, parsed);
             usage = parsed;
             failCount = 0;
             uiState = "ok";
@@ -121,6 +125,57 @@ PlasmoidItem {
             mode = next;
         else if (usage)
             mode = next;               // allow toggle even if null; block() falls back
+    }
+
+    // ---- reset notification ------------------------------------------------
+    // A window reset = its resetAt timestamp jumps forward to the next window.
+    // Detected here at fetch time by comparing the previous parsed JSON to the
+    // new one, so no extra timer is needed.
+    function resetTs(b) {
+        return (b && b.resetAt) ? Date.parse(b.resetAt) : NaN;
+    }
+    function maybeNotifyReset(prev, next) {
+        if (!plasmoid.configuration.notifyOnReset)
+            return;
+        checkBlockReset(prev.session, next.session, i18n("Session"));
+        checkBlockReset(prev.weekly,  next.weekly,  i18n("Weekly"));
+    }
+    function checkBlockReset(oldB, newB, label) {
+        var o = resetTs(oldB), n = resetTs(newB);
+        if (!isNaN(o) && !isNaN(n) && n > o)   // window rolled over
+            fireResetNotification(label);
+    }
+    function fireResetNotification(label) {
+        var u = plasmoid.configuration.notifyUrgency;
+        resetNotification.urgency =
+            u === "Critical" ? Notification.CriticalUrgency
+          : u === "Low"      ? Notification.LowUrgency
+          :                    Notification.NormalUrgency;
+        resetNotification.title = i18n("Claude Usage reset");
+        resetNotification.text  = i18n("%1 limit has reset.", label);
+        resetNotification.sendEvent();
+        playResetSound();
+    }
+    function playResetSound() {
+        if (!plasmoid.configuration.soundEnabled)
+            return;
+        var name = plasmoid.configuration.soundName || "bell";
+        resetPlayer.source = "file:///usr/share/sounds/freedesktop/stereo/" + name + ".oga";
+        resetPlayer.play();
+    }
+
+    Notification {
+        id: resetNotification
+        componentName: "plasma_workspace"   // generic event, no custom notifyrc needed
+        eventId: "notification"
+        iconName: "office-chart-line"
+        autoDelete: true
+    }
+
+    AudioOutput { id: resetAudioOut }
+    MediaPlayer {
+        id: resetPlayer
+        audioOutput: resetAudioOut
     }
 
     Component.onCompleted: fetchData()

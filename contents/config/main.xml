@@ -16,5 +16,22 @@
       <min>60</min>
       <max>3600</max>
     </entry>
+    <!-- notification on window reset -->
+    <entry name="notifyOnReset" type="Bool">
+      <label>Show a notification when a usage window resets</label>
+      <default>true</default>
+    </entry>
+    <entry name="notifyUrgency" type="String">
+      <label>Notification urgency (Low | Normal | Critical)</label>
+      <default>Normal</default>
+    </entry>
+    <entry name="soundEnabled" type="Bool">
+      <label>Play a sound when a usage window resets</label>
+      <default>true</default>
+    </entry>
+    <entry name="soundName" type="String">
+      <label>Freedesktop sound theme basename</label>
+      <default>bell</default>
+    </entry>
   </group>
 </kcfg>
