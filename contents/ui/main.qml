@@ -48,6 +48,8 @@ PlasmoidItem {
     function fmtCountdown(secs) {
         if (secs === null || secs === undefined || secs < 0)
             return "--";
+        if (secs === 0)
+            return "0";              // window not started / just reset
         if (secs >= 86400) {
             var d = Math.floor(secs / 86400);
             var h = Math.floor((secs % 86400) / 3600);
