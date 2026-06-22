@@ -90,7 +90,9 @@ PlasmoidItem {
     function fetchData() {
         var scriptUrl = Qt.resolvedUrl("../code/collect.py");
         var script = scriptUrl.toString().replace(/^file:\/\//, "");
-        var cmd = "python3 '" + script.replace(/'/g, "'\\''") + "'";
+        // nonce comment makes each call a unique DataSource name so a hung
+        // prior run (offline DNS timeout) can't dedupe/swallow the retry
+        var cmd = "python3 '" + script.replace(/'/g, "'\\''") + "' # " + Date.now();
         executable.connectSource(cmd);
     }
 
@@ -189,6 +191,15 @@ PlasmoidItem {
 
     Component.onCompleted: fetchData()
 
+    // right-click → "Refresh now": force an immediate re-fetch
+    Plasmoid.contextualActions: [
+        PlasmaCore.Action {
+            text: i18n("Refresh now")
+            icon.name: "view-refresh"
+            onTriggered: root.fetchData()
+        }
+    ]
+
     Timer {
         id: refreshTimer
         interval: Math.max(60, plasmoid.configuration.refreshIntervalSeconds) * 1000
@@ -197,14 +208,15 @@ PlasmoidItem {
         onTriggered: root.fetchData()
     }
 
-    // fast retry while we have no data yet (e.g. network not up right after
-    // boot) so the panel recovers in seconds instead of waiting a full
-    // refresh interval. Stops once a fetch succeeds.
+    // fast retry whenever data is missing or unhealthy (no data yet at boot,
+    // hard error, or stale after a network blip) so the panel recovers in
+    // seconds instead of waiting a full refresh interval. Stops once ok.
     Timer {
         id: retryTimer
         interval: 15000
         repeat: true
         running: root.uiState === "error" || root.uiState === "loading"
+                 || root.uiState === "stale"
         onTriggered: root.fetchData()
     }
 
