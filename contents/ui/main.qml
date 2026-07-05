@@ -110,7 +110,11 @@ PlasmoidItem {
                 maybeNotifyReset(usage, parsed);
             usage = parsed;
             failCount = 0;
-            uiState = "ok";
+            // collector serves last-good cache with stale=true when its own live
+            // fetch failed (e.g. token expired behind a live session). Surface
+            // that instead of presenting a frozen value as current — retryTimer
+            // keeps re-fetching until a fresh (non-stale) result recovers it.
+            uiState = parsed.stale ? "stale" : "ok";
         } else {
             failCount += 1;
             if (usage && failCount >= 2)

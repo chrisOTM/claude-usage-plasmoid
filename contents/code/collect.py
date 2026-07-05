@@ -21,10 +21,11 @@ Never crashes the widget: on any failure it prints a well-formed error JSON
 
 Output schema (the contract with main.qml):
 
-    {version, provider, session, weekly, tier, fetchedAt, error}
+    {version, provider, session, weekly, tier, fetchedAt, error, stale}
 
 where session/weekly are {pct, resetAt, secondsToReset} or null. `session` maps
-to the API's five_hour window, `weekly` to seven_day.
+to the API's five_hour window, `weekly` to seven_day. `stale` is true when the
+numbers are a last-good cache served because the live fetch failed.
 """
 
 import json
@@ -52,6 +53,12 @@ MIN_FETCH_INTERVAL_S = 45
 # than this (so a transient 429 / network blip keeps the numbers on screen
 # instead of blanking to N/A).
 CACHE_MAX_AGE_S = 3600
+# How long the access token must be expired past its own expiresAt before we
+# will self-refresh it even while a claude session is live. A live CLI refreshes
+# its token proactively around expiry; a token still expired this long past it
+# means the session is idle and not about to rotate the refresh token itself, so
+# it is safe for us to step in rather than freeze on stale data indefinitely.
+REFRESH_GRACE_S = 60
 
 
 def now_utc() -> datetime:
@@ -67,6 +74,7 @@ def base_result() -> dict:
         "tier": "unknown",
         "fetchedAt": now_utc().isoformat().replace("+00:00", "Z"),
         "error": None,
+        "stale": False,
     }
 
 
@@ -120,6 +128,17 @@ def claude_is_running() -> bool:
         except PermissionError:
             return True  # exists but not ours — treat as live
     return False
+
+
+def token_expired_beyond_grace(oauth: dict) -> bool:
+    """True if the token's own expiresAt is more than REFRESH_GRACE_S in the
+    past. Lets us self-refresh a clearly-abandoned expired token even while a
+    session is live, instead of freezing on stale data forever waiting for an
+    idle CLI to refresh it. Missing expiresAt -> False (stay conservative)."""
+    exp = oauth.get("expiresAt")
+    if not exp:
+        return False
+    return (now_utc().timestamp() * 1000 - exp) > REFRESH_GRACE_S * 1000
 
 
 # ---------------------------------------------------------------------------
@@ -249,9 +268,12 @@ def live_fetch() -> dict:
 
     status, data = get_usage(token)
 
-    # expired token -> refresh + retry, but only when the CLI isn't live
+    # expired token -> refresh + retry. Skip only while the CLI is live AND the
+    # token is still within its grace window (the CLI may be about to refresh it
+    # and rotate the refresh token). Past the grace window the session is idle,
+    # so we refresh ourselves rather than freeze on stale data indefinitely.
     if status == 401:
-        if claude_is_running():
+        if claude_is_running() and not token_expired_beyond_grace(oauth):
             return error_result("token expired (claude session active; will refresh on use)")
         new = refresh_oauth(oauth)
         if not new:
@@ -283,11 +305,14 @@ def fetch() -> dict:
         return result
 
     # live fetch failed (429, network, expired-while-active): keep showing the
-    # last good numbers if they're still reasonably fresh
+    # last good numbers if they're still reasonably fresh, but flag them stale
+    # so the UI dims them instead of presenting a frozen value as current.
     if have_cache and cache_age(cached) < CACHE_MAX_AGE_S:
         print(f"serving cached result after live fetch failed: {result['error']}",
               file=sys.stderr)
-        return cached
+        served = dict(cached)
+        served["stale"] = True
+        return served
     return result
 
 
