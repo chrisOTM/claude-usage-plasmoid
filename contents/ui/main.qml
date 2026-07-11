@@ -106,8 +106,11 @@ PlasmoidItem {
 
         var ok = parsed && !parsed.error && (parsed.session || parsed.weekly);
         if (ok) {
-            if (usage)   // had prior data — don't fire a notification on first load
-                maybeNotifyReset(usage, parsed);
+            var prev = usage;   // capture before commit for reset detection
+            // Commit the new data FIRST. The notification below must never be
+            // able to abort the update: if it throws, usage/uiState would stay
+            // frozen and — since prev never advances — every retry would re-detect
+            // the same "reset" and re-throw, freezing the panel indefinitely.
             usage = parsed;
             failCount = 0;
             // collector serves last-good cache with stale=true when its own live
@@ -115,6 +118,13 @@ PlasmoidItem {
             // that instead of presenting a frozen value as current — retryTimer
             // keeps re-fetching until a fresh (non-stale) result recovers it.
             uiState = parsed.stale ? "stale" : "ok";
+            if (prev) {   // had prior data — don't fire a notification on first load
+                try {
+                    maybeNotifyReset(prev, parsed);
+                } catch (e) {
+                    console.warn("reset notification failed:", e);
+                }
+            }
         } else {
             failCount += 1;
             if (usage && failCount >= 2)
@@ -162,10 +172,15 @@ PlasmoidItem {
     }
     function fireResetNotification(label) {
         var u = plasmoid.configuration.notifyUrgency;
+        // KNotification::Urgency is declared on the KNotification base class; the
+        // derived `Notification` QML element (NotificationWrapper) does not
+        // re-export a base class's enum in Qt6, so `Notification.CriticalUrgency`
+        // resolves to null and throws. Assign the underlying integer values
+        // (knotification.h: Low=10, Normal=50, Critical=90) directly.
         resetNotification.urgency =
-            u === "Critical" ? Notification.CriticalUrgency
-          : u === "Low"      ? Notification.LowUrgency
-          :                    Notification.NormalUrgency;
+            u === "Critical" ? 90
+          : u === "Low"      ? 10
+          :                    50;
         resetNotification.title = i18n("Claude Usage reset");
         resetNotification.text  = i18n("%1 limit has reset.", label);
         resetNotification.sendEvent();
@@ -245,8 +260,10 @@ PlasmoidItem {
         readonly property bool stale: root.uiState === "stale"
         readonly property var b: root.block()
         readonly property real pct: b && b.pct !== undefined ? b.pct : 0
-        // depend on root.tick so the binding re-evaluates on the display timer
-        readonly property int secs: (root.tick, b ? root.remainingSecs(b) : null)
+        // depend on root.tick so the binding re-evaluates on the display timer.
+        // var (not int): remainingSecs / the no-data case yield null, which
+        // fmtCountdown renders as "--"; an int property would warn on null.
+        readonly property var secs: (root.tick, b ? root.remainingSecs(b) : null)
 
         implicitWidth: layout.implicitWidth + Kirigami.Units.smallSpacing * 2
         implicitHeight: Math.max(layout.implicitHeight, Kirigami.Units.iconSizes.small)
