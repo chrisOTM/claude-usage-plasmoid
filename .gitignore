@@ -7,3 +7,6 @@ __pycache__/
 
 # Internal design spec — kept local, not published
 spec.md
+
+# graphify knowledge graph (local, regenerated)
+graphify-out/
